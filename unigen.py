@@ -42,7 +42,37 @@ type2 = 'installCia'
 message3 = f'Deleting {filename}...'
 type3 = 'deleteFile'
 
-storeContent = {"info": {"title": title, "author": author, "description": description, "category": f"[{category}]", "console": f"[{console}]", "icon_index": icon_index, "sheet_index": sheet_index, "last_updated": last_updated, "license": license, "version": version}, f"Download {filename} ({size})": [{"file": fileurl, "message": message1, "output": output, "type": type1}, {"file": filepath,"message": message2, "type": type2}, {"file": output, "message": message3, "type": type3}]}
+storeContent = {
+    "info": {
+        "title": title,
+        "author": author,
+        "description": description,
+        "category": f"[{category}]",
+        "console": f"[{console}]",
+        "icon_index": icon_index,
+        "sheet_index": sheet_index,
+        "last_updated": last_updated,
+        "license": license,
+        "version": version},
+    f"Download {filename} ({size})": [
+        {
+            "file": fileurl,
+            "message": message1,
+            "output": output,
+            "type": type1
+        },
+        {
+            "file": filepath,
+            "message": message2,
+            "type": type2
+        },
+        {
+            "file": output, 
+            "message": message3, 
+            "type": type3
+        }
+    ]
+}
 
 storetitle = "Example Title"
 storeauthor = "Example Author"
