@@ -31,3 +31,7 @@ External tools are used for the creation of the t3x file :
 - [ ] Make Unigen compatible with Mac and Linux
 - [ ] Automatically create a static html page using Docker
 - [ ] Complete icon database
+
+## [Contributing](https://github.com/TheLowHigh/Unigen/blob/main/docs/CONTRIBUTING.md)
+
+- You can follow the instructions in [CONTRIBUTING.md](https://github.com/TheLowHigh/Unigen/blob/main/docs/CONTRIBUTING.md) to contribute to the project.
