@@ -1,8 +1,12 @@
-import json, glob, os, re, time
+import json, glob, os, re, time, math
+from sre_constants import CATEGORY_DIGIT
+import shutil
+from operator import iconcat
 from textwrap import indent
 from igdb.wrapper import IGDBWrapper
 from dotenv import load_dotenv
 from datetime import date
+from subprocess import Popen, PIPE, run
 
 def write_empty_file(file_name):
     with open(file_name, 'w') as f:
@@ -11,6 +15,16 @@ def write_empty_file(file_name):
 def is_empty(file_name):
     with open(file_name, 'r') as f:
         return f.read() == ''
+
+def find_id():
+        with open('titles.txt', 'r', errors='replace') as f:
+            gameid = f.readlines()[4]
+            gameid = gameid.replace('|', '').replace(' ', '')
+            gameid = gameid[1:]
+            gameid = gameid[:9]
+            gameid = gameid[:3] + gameid[5:]
+            f.close()
+        return gameid
 
 if is_empty('.unistore.json'):
     write_empty_file('.unistore.json')
@@ -28,7 +42,7 @@ if empty == True:
 gamedir = input('Game directory: ')
 domain = input('Domain name (without http://): ')
 storeinfo = input('Do you want to create/update the store informations? (y/n) : ')
-
+error_count = 0
 
 if storeinfo == 'y':
     storetitle = input('Store title: ')
@@ -57,120 +71,172 @@ if storeinfo == 'y':
     "version": version
     }
 
+os.system('cls' if os.name == 'nt' else 'clear')
+
 ciagames_path = glob.glob(gamedir + '/*.cia')
 ciagames_names_with_cia = [os.path.basename(x) for x in ciagames_path]
-ciagames_names = [x[:-4] for x in ciagames_names_with_cia]
-ciagames = []
-for game in ciagames_names:
-    game = re.sub(r"\([^()]*\)", "", game)
-    ciagames.append(game)
-
-#use igdb api to get game info
-
 
 load_dotenv()
 CLIENT_ID = os.getenv('CLIENT_ID')
 IGDB_API_TOKEN = os.getenv('IGDB_API_TOKEN')
 wrapper = IGDBWrapper(CLIENT_ID, IGDB_API_TOKEN)
 
-n = -1
-for game in ciagames:
-    n = n + 1
+count = -1
+
+for game_with_cia in ciagames_names_with_cia:
+    while True:
+        try:
+            game = re.sub(r"\([^()]*\)", "", game_with_cia[:-4])
+            byte_array = wrapper.api_request(
+                'games',
+                'fields *; search "' + game + '"; limit 1;',
+            )
+            game_response=json.loads(byte_array)
+
+            for gameinfo in game_response:
+                title = gameinfo['name']
+                try : 
+                    authors = gameinfo['involved_companies']
+                    authors = authors[0]
+                    time.sleep(0.5) #preventing rate limiting
+                    byte_array2 = wrapper.api_request(
+                        'companies',
+                        f'fields name; where id = {str(authors)}; limit 1;',
+                    )
+                    author_response=json.loads(byte_array2)
+                    authors = author_response[0]['name']
+                except:
+                    authors = 'Unknown'
+
+                description = gameinfo['summary']
+                if len(description.split()) > 10:
+                    description = ' '.join(description.split()[:10]) + '...'
+                category = "games"
+                console = "3DS"
+                sheet_index = 0
+                last_updated = date.today().strftime("%d-%m-%Y")
+                license = "Proprietary"
+                if 'Europe' in game_with_cia:
+                    version = "Europe"
+                elif 'America' in game_with_cia:
+                    version = "America"
+                elif 'Japan' in game_with_cia:
+                    version = "Japan"
+                elif 'Australia' in game_with_cia:
+                    version = "Australia"
+                else:
+                    version = "Unknown"
+                filename = game_with_cia
+                size = (os.path.getsize(f"{gamedir}/{filename}"))
+                size = str(math.floor(size/ 1024 / 1024)) + " MiB"
+                fileurl = f"http://{domain}/{filename}"
+                message1 = f'Downloading {filename}...'
+                output = f'sdmc:/{filename}'
+                type1 = 'downloadFile'
+
+                filepath = f'/{filename}'
+                message2 = f'Installing {filename}...'
+                type2 = 'installCia'
+
+                message3 = f'Deleting {filename}...'
+                type3 = 'deleteFile'
+                print(f'The game {title} was found in the database')
+                with open('.unistore.json') as f:
+                    data = json.load(f)
+
+                p = Popen(["TidGen.exe", f"{gamedir}/{filename}"], stdin=PIPE, shell=True)
+                p.communicate(input=b'\n')
+                
+                gameid = find_id()
+
+                print(f'The game {title} has the id {gameid}')
+                with open(f't3s/unigen.t3s', 'a') as f:
+                    count += 1
+                    if is_empty(f't3s/unigen.t3s'):
+                        f.write(f'--atlas -f rgba -z auto\n\n')
+                    f.write('t3s/data/' + gameid + '/icon.jpg\n')
+                icon_index = count
+
+                with open(f'unigen.html', 'a') as f:
+                    f.write(f'<a href="/games/{console}/{game_with_cia}" download>{game_with_cia}</a><br>\n')
+
+                storeContent = {
+                    "info": {
+                        "title": title,
+                        "author": authors,
+                        "description": description,
+                        "category": f"[{category}]",
+                        "console": f"[{console}]",
+                        "icon_index": icon_index,
+                        "sheet_index": sheet_index,
+                        "last_updated": last_updated,
+                        "license": license,
+                        "version": version},
+                    f"Download {filename} ({size})": [
+                        {
+                            "file": fileurl,
+                            "message": message1,
+                            "output": output,
+                            "type": type1
+                        },
+                        {
+                            "file": filepath,
+                            "message": message2,
+                            "type": type2
+                        },
+                        {
+                            "file": output, 
+                            "message": message3, 
+                            "type": type3
+                        }
+                    ]
+                }
+
+                with open('.unistore.json', 'w') as f:
+                    data["storeContent"].append(storeContent)
+                    json.dump(data,  f, indent=4)
+                time.sleep(0.5) #prevent rate limiting
+
+        except Exception as e: 
+            if error_count > 5:
+                print(f'Error: {e}')
+                break
+            error_count += 1
+            print(e) 
+            print(f'{game} has encountered an error... Retrying...')
+            continue
+        break
+
+while True:
     try:
-        byte_array = wrapper.api_request(
-            'games',
-            'fields *; search "' + game + '"; limit 1;',
-        )
-        game_response=json.loads(byte_array)
+        command = "tex3ds.exe -i t3s/unigen.t3s -o t3x/unigen.t3x"
+        result = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        output = result.stderr
+        try: 
+            output = re.findall(r"'(.*?)'", output)[0].replace('/t3s', '')
+        except:
+            break
+        if len(output) > 35:
+            break
+        print(f'The icon of the game with the id {output} was not found')
+        with open("t3s/unigen.t3s", 'r') as f:
+            lines = f.readlines()
+        with open("t3s/unigen.t3s", 'w') as f:
+            for line in lines:
+                if line.strip('\n') == 'data/UNIGENDEFAULT/icon.png\n':
+                    pass
+                elif line.strip('\n') != output:
+                    f.write(line)
+                else :
+                    f.write('data/UNIGENDEFAULT/icon.png\n')
+    except:
+        break
 
-        for gameinfo in game_response:
-            title = gameinfo['name']
-            try : 
-                authors = gameinfo['involved_companies']
-                authors = authors[0]
-                time.sleep(0.5)
-                byte_array2 = wrapper.api_request(
-                    'companies',
-                    f'fields name; where id = {str(authors)}; limit 1;',
-                )
-                author_response=json.loads(byte_array2)
-                authors = author_response[0]['name']
-            except:
-                authors = 'Unknown'
-                print('No author found for ' + game)
-            description = gameinfo['summary']
-            category = "games"
-            console = "3DS"
-            icon_index = "A FAIRE"
-            sheet_index = "A FAIRE"
-            last_updated = date.today().strftime("%m-%d-%Y")
-            license = "Proprietary"
-            if 'Europe' in ciagames_names_with_cia[n]:
-                version = "Europe"
-            elif 'America' or 'USA' in ciagames_names_with_cia[n]:
-                version = "America"
-            elif 'Japan' in ciagames_names_with_cia[n]:
-                version = "Japan"
-            elif 'Australia' in ciagames_names_with_cia[n]:
-                version = "Australia"
-            else:
-                version = "Unknown"
-            filename = ciagames_names_with_cia[n]
-            size = (os.path.getsize(f"{gamedir}/{filename}"))
-            size = str(size/ 1024 / 1024) + " MiB"
-            fileurl = f"http://{domain}/{filename}"
-            message1 = f'Downloading {filename}...'
-            output = f'sdmc:/{filename}'
-            type1 = 'downloadFile'
+time.sleep(0.3)
 
-            filepath = f'/{filename}'
-            message2 = f'Installing {filename}...'
-            type2 = 'installCia'
+cwd = os.getcwd()
+shutil.copyfile(f'{cwd}/.unistore.json', f'{cwd}/server/.unistore')
+shutil.copyfile(f'{cwd}/t3x/unigen.t3x', f'{cwd}/server/unigen.t3x')
+shutil.copyfile(f'{cwd}/unigen.html', f'{cwd}/server/unigen.html')
 
-            message3 = f'Deleting {filename}...'
-            type3 = 'deleteFile'
-            print(f'The game {title} was found in the database')
-            with open('.unistore.json') as f:
-                data = json.load(f)
-
-            storeContent = {
-                "info": {
-                    "title": title,
-                    "author": authors,
-                    "description": description,
-                    "category": f"[{category}]",
-                    "console": f"[{console}]",
-                    "icon_index": icon_index,
-                    "sheet_index": sheet_index,
-                    "last_updated": last_updated,
-                    "license": license,
-                    "version": version},
-                f"Download {filename} ({size})": [
-                    {
-                        "file": fileurl,
-                        "message": message1,
-                        "output": output,
-                        "type": type1
-                    },
-                    {
-                        "file": filepath,
-                        "message": message2,
-                        "type": type2
-                    },
-                    {
-                        "file": output, 
-                        "message": message3, 
-                        "type": type3
-                    }
-                ]
-            }
-            with open('.unistore.json', 'w') as f:
-                data["storeContent"].append(storeContent)
-                json.dump(data,  f, indent=4)
-            time.sleep(0.5) #prevent rate limiting
-
-
-    except Exception as e: 
-        print(e) 
-        print(f'{game} not found')
-        continue
+print('Done')
