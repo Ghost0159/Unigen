@@ -94,7 +94,11 @@ for game_with_cia in ciagames_names_with_cia:
             game_response=json.loads(byte_array)
 
             for gameinfo in game_response:
-                title = gameinfo['name']
+                try: 
+                    title = gameinfo['name']
+                except:
+                    title = game_with_cia[:-4]
+                
                 try : 
                     authors = gameinfo['involved_companies']
                     authors = authors[0]
@@ -108,9 +112,13 @@ for game_with_cia in ciagames_names_with_cia:
                 except:
                     authors = 'Unknown'
 
-                description = gameinfo['summary']
-                if len(description.split()) > 10:
-                    description = ' '.join(description.split()[:10]) + '...'
+                try :
+                    description = gameinfo['summary']
+                except:
+                    description = 'No description'
+
+                if len(description.split()) > 20:
+                    description = ' '.join(description.split()[:20]) + '...'
                 category = "games"
                 console = "3DS"
                 sheet_index = 0
