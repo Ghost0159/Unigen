@@ -1,6 +1,6 @@
 # Adding icons
 
-You can contribute to Unigen by adding icons. Simply submit a pull request with the new icons you've added. The icons are located in 't3s/data'. Make sure to follow the whatsay of how folders and files are named.
+You can contribute to Unigen by adding icons. Simply submit a pull request with the new icons you've added. The icons are located in 't3s/data'. Make sure to follow the way that folders and files are named.
 
 # Making suggestions
 
