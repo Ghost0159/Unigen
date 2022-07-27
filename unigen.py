@@ -209,7 +209,7 @@ for game_with_cia in progressbar(ciagames_names_with_cia, "Progress: ", 40):
                     count += 1
                     if is_empty(f't3s/unigen{t3x_sheet}.t3s'):
                         f.write(f'--atlas -f rgba -z auto\n\n')
-                    f.write('t3s/data/' + gameid + '/icon.jpg\n')
+                    f.write('data/' + gameid + '/icon.jpg\n')
                 
                 sheet_index = t3x_sheet
 
