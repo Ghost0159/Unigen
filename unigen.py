@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from datetime import date
 from subprocess import Popen, PIPE, run
 
+cwd = os.getcwd()
+
 def write_empty_file(file_name):
     with open(file_name, 'w') as f:
         f.write('{"storeContent": []}')
@@ -26,6 +28,33 @@ def find_id():
             f.close()
         return gameid
 
+def create_t3x(t3s_file_number):
+    while True:
+        try:
+            command = f"tex3ds.exe -i t3s/unigen{t3s_file_number}.t3s -o t3x/{t3s_file_number}.t3x"
+            result = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+            output = result.stderr
+            try: 
+                output = re.findall(r"'(.*?)'", output)[0].replace('/t3s', '')
+            except:
+                break
+            if len(output) > 35:
+                break
+            print(f'The icon of the game with the id {output} was not found')
+            with open(f"t3s/unigen{t3s_file_number}.t3s", 'r') as f:
+                lines = f.readlines()
+            with open(f"t3s/unigen{t3s_file_number}.t3s", 'w') as f:
+                for line in lines:
+                    if line.strip('\n') == 'data/UNIGENDEFAULT/icon.png\n':
+                        pass
+                    elif line.strip('\n') != output:
+                        f.write(line)
+                    else :
+                        f.write('data/UNIGENDEFAULT/icon.png\n')
+        except:
+            break
+    shutil.copyfile(f'{cwd}/t3x/unigen{t3s_file_number}.t3x', f'{cwd}/server/unigen{t3s_file_number}.t3x')
+
 if is_empty('.unistore.json'):
     write_empty_file('.unistore.json')
     empty = True
@@ -43,6 +72,8 @@ gamedir = input('Game directory: ')
 domain = input('Domain name (without http://): ')
 storeinfo = input('Do you want to create/update the store informations? (y/n) : ')
 error_count = 0
+t3x_sheet = 0
+
 
 if storeinfo == 'y':
     storetitle = input('Store title: ')
@@ -121,7 +152,6 @@ for game_with_cia in ciagames_names_with_cia:
                     description = ' '.join(description.split()[:20]) + '...'
                 category = "games"
                 console = "3DS"
-                sheet_index = 0
                 last_updated = date.today().strftime("%d-%m-%Y")
                 license = "Proprietary"
                 if 'Europe' in game_with_cia:
@@ -158,11 +188,20 @@ for game_with_cia in ciagames_names_with_cia:
                 gameid = find_id()
 
                 print(f'The game {title} has the id {gameid}')
-                with open(f't3s/unigen.t3s', 'a') as f:
+
+                #every time count hits a multiple of 419 add 1 to the value of sheet_index
+
+                if count % 419 == 0 and count != 0:
+                    t3x_sheet += 1
+                    create_t3x(t3x_sheet)
+                with open(f't3s/unigen{t3x_sheet}.t3s', 'a') as f:
                     count += 1
-                    if is_empty(f't3s/unigen.t3s'):
+                    if is_empty(f't3s/unigen{t3x_sheet}.t3s'):
                         f.write(f'--atlas -f rgba -z auto\n\n')
                     f.write('t3s/data/' + gameid + '/icon.jpg\n')
+                
+                sheet_index = t3x_sheet
+
                 icon_index = count
 
                 with open(f'unigen.html', 'a') as f:
@@ -215,36 +254,12 @@ for game_with_cia in ciagames_names_with_cia:
             continue
         break
 
-while True:
-    try:
-        command = "tex3ds.exe -i t3s/unigen.t3s -o t3x/unigen.t3x"
-        result = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        output = result.stderr
-        try: 
-            output = re.findall(r"'(.*?)'", output)[0].replace('/t3s', '')
-        except:
-            break
-        if len(output) > 35:
-            break
-        print(f'The icon of the game with the id {output} was not found')
-        with open("t3s/unigen.t3s", 'r') as f:
-            lines = f.readlines()
-        with open("t3s/unigen.t3s", 'w') as f:
-            for line in lines:
-                if line.strip('\n') == 'data/UNIGENDEFAULT/icon.png\n':
-                    pass
-                elif line.strip('\n') != output:
-                    f.write(line)
-                else :
-                    f.write('data/UNIGENDEFAULT/icon.png\n')
-    except:
-        break
-
 time.sleep(0.3)
 
-cwd = os.getcwd()
+if count < 419:
+    create_t3x(1)
+
 shutil.copyfile(f'{cwd}/.unistore.json', f'{cwd}/server/.unistore')
-shutil.copyfile(f'{cwd}/t3x/unigen.t3x', f'{cwd}/server/unigen.t3x')
 shutil.copyfile(f'{cwd}/unigen.html', f'{cwd}/server/unigen.html')
 
 print('Done')
