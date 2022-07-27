@@ -64,7 +64,7 @@ def create_t3x(t3s_file_number):
                         f.write('data/UNIGENDEFAULT/icon.png\n')
         except:
             break
-    shutil.copyfile(f'{cwd}/t3x/unigen{t3s_file_number}.t3x', f'{cwd}/server/{t3s_file_number}.t3x')
+    shutil.copyfile(f'{cwd}/t3x/{t3s_file_number}.t3x', f'{cwd}/server/{t3s_file_number}.t3x')
 
 if is_empty('.unistore.json'):
     write_empty_file('.unistore.json')
