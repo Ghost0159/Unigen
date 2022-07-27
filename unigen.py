@@ -1,4 +1,4 @@
-import json, glob, os, re, time, math
+import json, glob, os, re, time, math, sys
 from sre_constants import CATEGORY_DIGIT
 import shutil
 from operator import iconcat
@@ -9,6 +9,17 @@ from datetime import date
 from subprocess import Popen, PIPE, run
 
 cwd = os.getcwd()
+
+def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
+    count = len(it)
+    def show(j):
+        x = int(size*j/count)
+        print(f"{prefix}[{u'█'*x}{('.'*(size-x))}] {j}/{count}", end='\r', file=out, flush=True)
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i+1)
+    print("\n", flush=True, file=out)
 
 def write_empty_file(file_name):
     with open(file_name, 'w') as f:
@@ -53,7 +64,7 @@ def create_t3x(t3s_file_number):
                         f.write('data/UNIGENDEFAULT/icon.png\n')
         except:
             break
-    shutil.copyfile(f'{cwd}/t3x/unigen{t3s_file_number}.t3x', f'{cwd}/server/unigen{t3s_file_number}.t3x')
+    shutil.copyfile(f'{cwd}/t3x/unigen{t3s_file_number}.t3x', f'{cwd}/server/{t3s_file_number}.t3x')
 
 if is_empty('.unistore.json'):
     write_empty_file('.unistore.json')
@@ -114,7 +125,7 @@ wrapper = IGDBWrapper(CLIENT_ID, IGDB_API_TOKEN)
 
 count = -1
 
-for game_with_cia in ciagames_names_with_cia:
+for game_with_cia in progressbar(ciagames_names_with_cia, "Progress: ", 40):
     while True:
         try:
             game = re.sub(r"\([^()]*\)", "", game_with_cia[:-4])
@@ -192,8 +203,8 @@ for game_with_cia in ciagames_names_with_cia:
                 #every time count hits a multiple of 419 add 1 to the value of sheet_index
 
                 if count % 419 == 0 and count != 0:
-                    t3x_sheet += 1
                     create_t3x(t3x_sheet)
+                    t3x_sheet += 1
                 with open(f't3s/unigen{t3x_sheet}.t3s', 'a') as f:
                     count += 1
                     if is_empty(f't3s/unigen{t3x_sheet}.t3s'):
